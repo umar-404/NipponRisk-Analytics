@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Data cache (large market data, gitignored)
+backend/data/*.parquet
+backend/data/*.csv
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+
+# OS / editor
+.DS_Store
+*.log
+.idea/
+.vscode/*.log
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+

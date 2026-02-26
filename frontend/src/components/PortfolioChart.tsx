@@ -51,19 +51,64 @@ function downsample(
   return out;
 }
 
+/** Day string ("2024-07-01") from a full ISO date. */
+const day = (iso: string) => iso.slice(0, 10);
+
+/** Slice the FULL series to a window's date range (inclusive, day-level). */
+function sliceToWindow(
+  result: AnalysisResult,
+  window: StressResult,
+): { dates: string[]; equity: number[]; benchmark: number[] } {
+  const dates: string[] = [];
+  const equity: number[] = [];
+  const benchmark: number[] = [];
+  for (let i = 0; i < result.dates.length; i++) {
+    const d = day(result.dates[i]);
+    if (d >= window.start && d <= window.end) {
+      dates.push(result.dates[i]);
+      equity.push(result.equity_curve[i]);
+      benchmark.push(result.benchmark_equity[i]);
+    }
+  }
+  return { dates, equity, benchmark };
+}
+
+interface Shaded extends StressResult {
+  x1: string;
+  x2: string;
+}
+
 export default function PortfolioChart({ result, focusWindowKey }: PortfolioChartProps) {
   const hasResult = result !== null;
-  const data = hasResult
-    ? downsample(result.dates, result.equity_curve, result.benchmark_equity)
-    : [];
   const focusWindow = focusWindowKey && result
     ? result.stress.find((s) => s.key === focusWindowKey)
     : undefined;
 
-  // Stress windows rendered as reference areas when not zoomed into one.
-  const areas: StressResult[] = focusWindow || !result
-    ? []
-    : result.stress.filter((s) => !s.skipped);
+  // Zoomed view: slice the FULL series to the focused window, then downsample
+  // that slice. Overview view: downsample the whole sample.
+  const data: Datum[] = (() => {
+    if (!hasResult) return [];
+    if (focusWindow) {
+      const w = sliceToWindow(result, focusWindow);
+      return downsample(w.dates, w.equity, w.benchmark, 120);
+    }
+    return downsample(result.dates, result.equity_curve, result.benchmark_equity);
+  })();
+
+  // Stress windows shaded as reference areas (overview view only). The XAxis
+  // is categorical, so x1/x2 must be labels that exist on the axis — snap them
+  // to the nearest plotted point instead of using the raw window bounds.
+  const areas: Shaded[] = (() => {
+    if (!hasResult || focusWindow) return [];
+    return result.stress
+      .filter((s) => !s.skipped)
+      .map((s): Shaded | null => {
+        const first = data.find((d) => day(d.date) >= s.start);
+        const last = [...data].reverse().find((d) => day(d.date) <= s.end);
+        return first && last ? { ...s, x1: first.date, x2: last.date } : null;
+      })
+      .filter((s): s is Shaded => s !== null);
+  })();
 
   const minY = hasResult && data.length
     ? Math.min(...data.map((d) => Math.min(d.portfolio, d.benchmark))) * 0.99
@@ -84,15 +129,19 @@ export default function PortfolioChart({ result, focusWindowKey }: PortfolioChar
       </div>
 
       {data.length === 0 ? (
-        <p className="py-10 text-center text-sm text-slate-400">No data to display.</p>
+        <p className="py-10 text-center text-sm text-slate-400">
+          {focusWindow
+            ? `No data for ${focusWindow.label} (${focusWindow.start} → ${focusWindow.end}).`
+            : "No data to display."}
+        </p>
       ) : (
         <ResponsiveContainer width="100%" height={360}>
           <LineChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis
               dataKey="date"
-              tickFormatter={(d: string) => d.slice(0, 7)}
-              minTickGap={40}
+              tickFormatter={(d: string) => day(d)}
+              minTickGap={30}
               tick={{ fontSize: 11, fill: "#64748b" }}
             />
             <YAxis
@@ -102,23 +151,22 @@ export default function PortfolioChart({ result, focusWindowKey }: PortfolioChar
               width={56}
             />
 
-            {!focusWindow &&
-              areas.map((s) => (
-                <ReferenceArea
-                  key={s.key}
-                  x1={s.start}
-                  x2={s.end}
-                  fill="#f59e0b"
-                  fillOpacity={0.12}
-                  stroke="#f59e0b"
-                  strokeOpacity={0.4}
-                  ifOverflow="discard"
-                />
-              ))}
+            {areas.map((s) => (
+              <ReferenceArea
+                key={s.key}
+                x1={s.x1}
+                x2={s.x2}
+                fill="#f59e0b"
+                fillOpacity={0.14}
+                stroke="#f59e0b"
+                strokeOpacity={0.4}
+                ifOverflow="extendDomain"
+              />
+            ))}
 
             <Tooltip
               formatter={(value) => [Number(value).toFixed(2), ""]}
-              labelFormatter={(label) => String(label)}
+              labelFormatter={(label) => day(String(label))}
               contentStyle={{ fontSize: 12, borderRadius: 8 }}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />

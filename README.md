@@ -272,20 +272,7 @@ curl -X POST http://localhost:8000/api/analyze \
 - **Stress projections** chain the weighted returns within each window and report the peak-to-trough drawdown of that exactly-weighted mix.
 - **Lookback** is ~7 years by default so the data covers the earliest stress window (Mar 2020). Tune via `PERIOD` in `app/config.py`.
 
----
-
-## Roadmap / Status
-
-- [x] **P0** — Scaffolding
-- [x] **P1** — Data pipeline (`yfinance` fetch + cleaning + returns)
-- [x] **P2** — Risk engine (Historical + Monte Carlo VaR, drawdown, beta, stress)
-- [x] **P3** — FastAPI `/api/analyze` + service layer
-- [x] **P4** — Frontend types + API layer
-- [x] **P5** — Dashboard UI (sliders, stat cards, Recharts)
-- [x] **P6** — Integration & polish (Vite proxy, live E2E, README)
-
----
 
 ## License
 
-Private / internal analytics tool.
+Private / internal analytics tool by UMAR.

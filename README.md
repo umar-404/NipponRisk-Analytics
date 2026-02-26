@@ -273,6 +273,38 @@ curl -X POST http://localhost:8000/api/analyze \
 - **Lookback** is ~7 years by default so the data covers the earliest stress window (Mar 2020). Tune via `PERIOD` in `app/config.py`.
 
 
+## Deployment (Vercel)
+
+The project deploys to Vercel directly from GitHub. The React build is served as
+static assets, and the `/api/*` endpoints run as Python serverless functions
+(`api/analyze.py`, `api/health.py`) that reuse the same backend engine — so the
+risk math is identical to local dev.
+
+Two files make this work:
+
+- `vercel.json` — build command, output directory (`frontend/dist`), function config
+- `requirements.txt` (root) — slim Python runtime deps (pandas, numpy, pyarrow)
+
+No environment variables are required. The frontend calls `/api/*` relative to
+its own origin, which Vercel routes to the matching serverless function.
+
+**Local development is unchanged.** Deleting or abandoning the Vercel deployment
+has no effect on running the project locally:
+
+```bash
+# Backend (terminal 1)
+cd backend && source .venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+
+# Frontend (terminal 2)
+cd frontend && npm run dev
+```
+
+Vite's dev proxy forwards `/api/*` to `localhost:8000`, so the app works exactly
+as it always has.
+
+---
+
 ## License
 
 Private / internal analytics tool by UMAR.

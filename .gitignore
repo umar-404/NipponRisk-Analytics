@@ -6,8 +6,7 @@ __pycache__/
 venv/
 .env
 
-# Data cache (large market data, gitignored)
-backend/data/*.parquet
+# CSV caches can be regenerated; parquet data stays tracked for Vercel
 backend/data/*.csv
 
 # Node / frontend

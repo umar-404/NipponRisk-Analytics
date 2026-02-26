@@ -1,0 +1,6 @@
+# NipponRisk Analytics — root dependencies for Vercel Python functions.
+# Slim runtime set: only what the analysis engine needs on the serverless path.
+# (fastapi/uvicorn stay in backend/requirements.txt and are NOT needed here.)
+pandas>=2.2.0
+numpy>=1.26.0
+pyarrow>=16.0.0

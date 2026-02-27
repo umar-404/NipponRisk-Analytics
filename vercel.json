@@ -1,11 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
+  "framework": "fastapi",
   "buildCommand": "npm run build",
-  "outputDirectory": "frontend/dist",
-  "functions": {
-    "api/**/*.py": {
-      "excludeFiles": "{frontend/**,backend/tests/**,node_modules/**,.git/**,**/*.test.py,__pycache__/**,**/*.pyc,.pytest_cache/**,.venv/**}"
-    }
-  }
+  "outputDirectory": "frontend/dist"
 }

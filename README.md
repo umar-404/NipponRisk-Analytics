@@ -275,18 +275,20 @@ curl -X POST http://localhost:8000/api/analyze \
 
 ## Deployment (Vercel)
 
-The project deploys to Vercel directly from GitHub. The React build is served as
-static assets, and the `/api/*` endpoints run as Python serverless functions
-(`api/analyze.py`, `api/health.py`) that reuse the same backend engine — so the
-risk math is identical to local dev.
+The project deploys to Vercel directly from GitHub. Vercel auto-detects and uses
+the **FastAPI framework preset**: a root-level `main.py` re-exports the backend
+`app` (so the risk math is identical to local dev), the React build is served as
+static assets from `frontend/dist`, and `/api/*` requests run through the
+FastAPI app.
 
-Two files make this work:
+Three files make this work:
 
-- `vercel.json` — build command, output directory (`frontend/dist`), function config
-- `requirements.txt` (root) — slim Python runtime deps (pandas, numpy, pyarrow)
+- `main.py` (root) — FastAPI entrypoint that Vercel loads (`app` instance)
+- `vercel.json` — build command + output directory (`frontend/dist`)
+- `requirements.txt` (root) — runtime deps: fastapi, pandas, numpy, pyarrow
 
 No environment variables are required. The frontend calls `/api/*` relative to
-its own origin, which Vercel routes to the matching serverless function.
+its own origin, so requests hit the same deployment.
 
 **Local development is unchanged.** Deleting or abandoning the Vercel deployment
 has no effect on running the project locally:
@@ -301,7 +303,8 @@ cd frontend && npm run dev
 ```
 
 Vite's dev proxy forwards `/api/*` to `localhost:8000`, so the app works exactly
-as it always has.
+as it always has. The root `main.py` is only exercised by Vercel's build; local
+runs never import it.
 
 ---
 

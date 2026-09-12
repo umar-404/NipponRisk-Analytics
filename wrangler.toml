@@ -1,0 +1,19 @@
+# NipponRisk Analytics - Cloudflare Workers deployment.
+# A single Worker serves both the static React SPA (frontend/dist) via the
+# ASSETS binding and the /api/* risk engine (worker/index.ts).
+#
+# Deploy:      npm run deploy          (alias: npx wrangler deploy)
+# Dev server:  npm run dev             (alias: npx wrangler dev)
+
+name = "nipponrisk-analytics"
+main = "worker/index.ts"
+compatibility_date = "2026-08-01"
+
+[assets]
+directory = "frontend/dist"
+not_found_handling = "single-page-application"
+binding = "ASSETS"
+
+# Runs before wrangler dev/deploy: rebuilds the Vite SPA so frontend/dist is fresh.
+[build]
+command = "npm run build"

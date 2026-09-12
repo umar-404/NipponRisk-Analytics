@@ -5,7 +5,7 @@ A lightweight portfolio **risk analytics & stress-testing** web application focu
 
 **Universe:** Toyota (`7203.T`) · Sony (`6758.T`) · Mitsubishi UFJ Financial Group (`8306.T`) · NTT (`9432.T`) · benchmark **Nikkei 225** (`^N225`)
 
-**Stack:** Python (FastAPI · yfinance · pandas · numpy · scipy) backend + React · TypeScript · Tailwind CSS frontend.
+**Stack:** Python (FastAPI · yfinance · pandas · numpy · scipy) backend + React · TypeScript · Tailwind CSS frontend. Deployed as a single **Cloudflare Worker** (static SPA + a TypeScript port of the risk engine).
 
 ---
 
@@ -29,6 +29,15 @@ A lightweight portfolio **risk analytics & stress-testing** web application focu
 NipponRisk Analytics/
 ├── README.md
 ├── .gitignore
+├── wrangler.toml              # Cloudflare Workers config (assets + API + build hook)
+├── package.json               # root scripts: build / dev / deploy / typecheck
+├── scripts/
+│   └── export_worker_data.py  # snapshots backend/data/returns.parquet -> worker/data/returns.ts
+├── worker/                    # Cloudflare Worker: TypeScript port of the risk engine
+│   ├── index.ts               # fetch handler (routes /api/*, falls back to SPA assets)
+│   ├── config.ts              # ticker universe, stress windows, MC params
+│   ├── risk.ts                # VaR / drawdown / beta / stress math
+│   └── data/returns.ts        # auto-generated aligned returns panel (committed)
 ├── backend/
 │   ├── requirements.txt
 │   ├── .env.example
@@ -273,38 +282,45 @@ curl -X POST http://localhost:8000/api/analyze \
 - **Lookback** is ~7 years by default so the data covers the earliest stress window (Mar 2020). Tune via `PERIOD` in `app/config.py`.
 
 
-## Deployment (Vercel)
+## Deployment (Cloudflare)
 
-The project deploys to Vercel directly from GitHub. Vercel auto-detects and uses
-the **FastAPI framework preset**: a root-level `main.py` re-exports the backend
-`app` (so the risk math is identical to local dev), the React build is served as
-static assets from `frontend/dist`, and `/api/*` requests run through the
-FastAPI app.
+The whole app runs on Cloudflare as a **single Worker** (Workers static assets +
+the API). The Vite SPA is built to `frontend/dist` and served from the `[assets]`
+binding; `/api/analyze` and `/api/health` are handled by a TypeScript port of the
+risk engine in `worker/`, so no Python runtime is needed at deploy time.
 
-Three files make this work:
+What makes this work:
 
-- `main.py` (root) — FastAPI entrypoint that Vercel loads (`app` instance)
-- `vercel.json` — build command + output directory (`frontend/dist`)
-- `requirements.txt` (root) — runtime deps: fastapi, pandas, numpy, pyarrow
+- `wrangler.toml` — Worker name, `worker/index.ts` entrypoint, static-assets
+  config (`frontend/dist`, SPA `index.html` fallback, `ASSETS` binding) and a
+  `[build]` hook that rebuilds the SPA before every `wrangler dev/deploy`.
+- `worker/` — the fetch handler + the full risk math in TypeScript.
+- `worker/data/returns.ts` — the aligned returns panel, embedded in the bundle so
+  Cloudflare CI needs no Python/pandas. Refresh it after re-fetching market data:
+  `./backend/.venv/bin/python scripts/export_worker_data.py` (aliased to
+  `npm run data:export`).
 
-No environment variables are required. The frontend calls `/api/*` relative to
-its own origin, so requests hit the same deployment.
+The frontend calls `/api/*` relative to its own origin, so the SPA and API live
+behind the same `workers.dev` URL.
 
-**Local development is unchanged.** Deleting or abandoning the Vercel deployment
-has no effect on running the project locally:
+### Deploy
 
 ```bash
-# Backend (terminal 1)
-cd backend && source .venv/bin/activate
-uvicorn app.main:app --reload --port 8000
-
-# Frontend (terminal 2)
-cd frontend && npm run dev
+npm install            # installs wrangler + TS types at the root
+npm run build          # builds frontend/dist (also run automatically by the hook)
+npm run deploy         # = npx wrangler deploy  -> prints your <name>.<subdomain>.workers.dev
 ```
 
-Vite's dev proxy forwards `/api/*` to `localhost:8000`, so the app works exactly
-as it always has. The root `main.py` is only exercised by Vercel's build; local
-runs never import it.
+- **Preview / dev server:** `npm run dev` (= `npx wrangler dev`) serves the app
+  locally at `http://localhost:8787` — same routes, same bundled data.
+- Re-run `npm run deploy` after pushing changes to update the live URL.
+
+**Local development is unchanged.** The SPA still proxies `/api` to the Python
+FastAPI backend on `:8000` during Vite dev (see `frontend/vite.config.ts`):
+
+```bash
+cd frontend && npm run dev     # Vite on :5173, proxies /api -> localhost:8000
+```
 
 ---
 

@@ -6,13 +6,17 @@ __pycache__/
 venv/
 .env
 
-# CSV caches can be regenerated; parquet data stays tracked for Vercel
+# CSV caches can be regenerated; parquet data stays tracked so the Cloudflare
+# Worker's embedded returns panel (worker/data/returns.ts) can be rebuilt.
 backend/data/*.csv
 
 # Node / frontend
 node_modules/
 dist/
 .vite/
+
+# Wrangler (Cloudflare Workers) local cache
+.wrangler/
 
 # OS / editor
 .DS_Store
